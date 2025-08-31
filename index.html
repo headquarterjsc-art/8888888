@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ระบบบันทึกการดำเนินการฝ่ายช่าง (Stable PDF v2+Stretch+Credit)</title>
+
+<!-- ใช้ html2canvas + jsPDF แยก (เสถียรกว่า bundle เดิม) -->
+<script defer src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans Thai",sans-serif;
+    background:linear-gradient(135deg,#667eea,#764ba2);min-height:100vh;padding:20px
+  }
+  .container{max-width:1000px;margin:0 auto;background:#fff;border-radius:20px;box-shadow:0 20px 40px rgba(0,0,0,.1);overflow:hidden}
+  .header{background:linear-gradient(135deg,#2c3e50,#34495e);color:#fff;padding:28px;text-align:center}
+  .header h1{font-size:2rem;margin-bottom:6px}
+  .form-container{padding:26px}
+  .form-group{margin-bottom:16px}
+  .form-group label{display:block;font-weight:600;margin-bottom:6px;color:#2c3e50}
+  .form-group input,.form-group select,.form-group textarea{
+    width:100%;padding:12px 14px;border:2px solid #e0e6ed;border-radius:10px;background:#f8f9fa;font-size:15px;transition:.2s
+  }
+  .form-group textarea{min-height:110px;resize:vertical}
+  .form-group input:focus,.form-group select:focus,.form-group textarea:focus{
+    outline:none;border-color:#667eea;background:#fff;box-shadow:0 0 0 3px rgba(102,126,234,.12)
+  }
+
+  .image-section{margin-top:14px;padding:16px;border:2px dashed #dee2e6;border-radius:12px;background:#f8f9fa}
+  .image-section h3{margin-bottom:10px;color:#2c3e50}
+  .image-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+  .image-slot{
+    width:100%; aspect-ratio:4/3; border:2px dashed #d9dee5; border-radius:10px; background:#fff;
+    position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center; transition:.2s
+  }
+  .image-slot:hover{border-color:#667eea;background:#f0f3ff}
+  /* ✅ ทำให้ภาพยืดพอดีกรอบ (Stretch) */
+  .image-slot img{
+    width:100%; height:100%; object-fit:fill; object-position:center; display:block;
+    image-orientation: from-image;
+  }
+  .image-placeholder{color:#6c757d;text-align:center;font-size:14px}
+  .remove-image{
+    position:absolute; top:8px; right:8px; width:28px; height:28px; border:none; border-radius:50%;
+    background:#dc3545; color:#fff; cursor:pointer; display:none; align-items:center; justify-content:center; font-size:16px
+  }
+  .image-slot:hover .remove-image{display:flex}
+
+  .actions{display:flex;gap:10px;justify-content:center;margin-top:18px;flex-wrap:wrap}
+  .btn{
+    padding:12px 18px;border:none;border-radius:10px;font-weight:700;font-size:15px;cursor:pointer;transition:.2s;color:#fff;
+    display:flex;align-items:center;gap:8px
+  }
+  .btn-primary{background:linear-gradient(135deg,#28a745,#20c997)}
+  .btn-danger{background:linear-gradient(135deg,#dc3545,#e74c3c)}
+  .btn-secondary{background:linear-gradient(135deg,#6c757d,#7c8b95)}
+  .btn:hover{transform:translateY(-2px);box-shadow:0 10px 20px rgba(0,0,0,.15)}
+  .hidden{display:none}
+
+  /* ปุ่มกลับด้านบน */
+  .back-to-top{
+    position:fixed; right:18px; bottom:18px; width:46px; height:46px; border-radius:999px;
+    display:flex; align-items:center; justify-content:center; background:#111; color:#fff; cursor:pointer; border:none;
+    box-shadow:0 10px 24px rgba(0,0,0,.25); opacity:0; pointer-events:none; transition:.25s; z-index:9999; font-size:18px
+  }
+  .back-to-top.show{opacity:.92; pointer-events:auto}
+  .back-to-top:hover{transform:translateY(-2px)}
+
+  /* ===== เทมเพลต A4 สำหรับส่งออก (วาง offscreen แต่ยังเรนเดอร์) ===== */
+  @page{size:A4;margin:0}
+  #printArea{
+    position:absolute; left:0; top:-10000px; /* offscreen */
+    width:794px; height:1123px; /* A4 @96dpi */
+    background:#fff; color:#000; overflow:hidden; border:1px solid transparent;
+  }
+  .p-header{height:74px; padding:12px 18px; background:#f4f7ff; border-bottom:1px solid #e6ebf5; display:flex; align-items:center; gap:14px}
+  .p-title{font-size:18px; font-weight:800; color:#2c3e50}
+  .p-meta{margin-left:auto; text-align:right; font-size:12px; color:#425466}
+  .p-body{position:absolute; left:0; right:0; top:74px; bottom:50px; padding:16px 18px; overflow:hidden; display:grid; grid-template-columns:1fr; gap:10px}
+  .p-row{display:grid; grid-template-columns:1fr 1fr; gap:10px; font-size:14px}
+  .p-label{color:#6b7c8a}
+  .p-value{color:#1f2d3a; font-weight:600}
+  .p-details{font-size:14px; line-height:1.35; border:1px solid #eef2f7; border-radius:8px; padding:10px; background:#fcfdff}
+
+  .p-images{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+  .p-img-slot{
+    width:100%; height:220px; border:1px solid #e9edf3; border-radius:8px; overflow:hidden; background:#fff;
+    display:flex; align-items:center; justify-content:center
+  }
+  /* ✅ ทำให้ภาพใน PDF ยืดเต็มกรอบ (Stretch) */
+  .p-img-slot img{
+    width:100%; height:100%; object-fit:fill; object-position:center; display:block;
+    image-orientation: from-image;
+  }
+
+  .p-footer{
+    position:absolute; left:0; right:0; bottom:0; height:50px; border-top:1px solid #e6ebf5; background:#fafbff;
+    display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 16px; font-size:12px; color:#4b5f72
+  }
+  .p-credit{white-space:nowrap}
+
+  @media(max-width:768px){
+    .image-grid{grid-template-columns:1fr}
+    .p-row{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🔧 ระบบบันทึกการดำเนินการฝ่ายช่าง</h1>
+      <div>บันทึกและจัดการข้อมูลการดำเนินงานอย่างเป็นระบบ</div>
+    </div>
+
+    <div class="form-container">
+      <form id="engineeringForm">
+        <div class="form-group">
+          <label for="date">📅 วันที่ดำเนินการ</label>
+          <input type="date" id="date" required>
+        </div>
+        <div class="form-group">
+          <label for="project">🏗️ โครงการ</label>
+          <input type="text" id="project" placeholder="ระบุชื่อโครงการ" required>
+        </div>
+        <div class="form-group">
+          <label for="operator">👤 ผู้ดำเนินการ</label>
+          <input type="text" id="operator" placeholder="ชื่อผู้ดำเนินการ" required>
+        </div>
+        <div class="form-group">
+          <label for="department">🏢 แผนก / ส่วนงาน</label>
+          <select id="department" required>
+            <option value="">เลือกแผนก / ส่วนงาน</option>
+            <option>ฝ่ายช่างไฟฟ้า</option><option>ฝ่ายช่างเครื่องกล</option><option>ฝ่ายช่างโยธา</option>
+            <option>ฝ่ายบำรุงรักษา</option><option>ฝ่ายควบคุมคุณภาพ</option><option>ฝ่ายความปลอดภัย</option><option>อื่นๆ</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="details">📝 รายละเอียดการดำเนินการ</label>
+          <textarea id="details" placeholder="อธิบายรายละเอียดการดำเนินการ ปัญหาที่พบ และวิธีการแก้ไข" required></textarea>
+        </div>
+
+        <div class="image-section">
+          <h3>📸 รูปภาพประกอบ (สูงสุด 8 รูป)</h3>
+          <div class="image-grid" id="imageGrid"></div>
+          <div class="actions" style="margin-top:12px">
+            <button type="button" class="btn btn-secondary" id="addImageBtn">➕ เพิ่มรูปภาพ</button>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button type="button" class="btn btn-primary" id="btnExport">📄 ส่งออกเป็น PDF</button>
+          <button type="button" class="btn btn-danger" id="clearAllBtn">🗑️ ล้างข้อมูลทั้งหมด</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ปุ่มกลับด้านบน -->
+  <button class="back-to-top" id="backToTop" title="กลับด้านบน">↑</button>
+
+  <!-- input file ซ่อน -->
+  <input type="file" id="imageInput" class="hidden" accept="image/*" multiple>
+
+  <!-- ===== เทมเพลต A4 สำหรับส่งออก ===== -->
+  <div id="printArea" aria-hidden="true">
+    <div class="p-header">
+      <div class="p-title">รายงานการดำเนินการฝ่ายช่าง</div>
+      <div class="p-meta">
+        <div id="p-date"></div>
+        <div id="p-project"></div>
+      </div>
+    </div>
+    <div class="p-body">
+      <div class="p-row">
+        <div><span class="p-label">ผู้ดำเนินการ:</span> <span class="p-value" id="p-operator"></span></div>
+        <div><span class="p-label">แผนก/ส่วนงาน:</span> <span class="p-value" id="p-dept"></span></div>
+      </div>
+      <div class="p-details" id="p-details"></div>
+
+      <div id="p-images-title" style="font-weight:700;margin:4px 0 2px;display:none;">รูปภาพประกอบ</div>
+      <div class="p-images" id="p-images"></div>
+    </div>
+    <div class="p-footer">
+      <div>ผู้จัดทำ: <strong id="p-footer-operator"></strong></div>
+      <!-- ✅ ข้อความตามที่ขอ -->
+      <div class="p-credit">จัดทำรายงานโดย ปกป้อง ภูวชาติโยธิน</div>
+      <div>หน้า 1/1</div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const MAX_IMAGES = 8;
+  let images = []; // เก็บ dataURL
+  const $ = id => document.getElementById(id);
+  const pad = n => String(n).padStart(2,'0');
+
+  function setToday(){ $('date').value = new Date().toISOString().split('T')[0]; }
+
+  function renderImageGrid(){
+    const grid = $('imageGrid'); grid.innerHTML = '';
+    for (let i=0;i<MAX_IMAGES;i++){
+      const slot = document.createElement('div'); slot.className = 'image-slot';
+      if (images[i]){
+        slot.innerHTML = `
+          <img src="${images[i]}" alt="รูปภาพ ${i+1}">
+          <button type="button" class="remove-image" data-index="${i}" title="ลบรูป">×</button>
+        `;
+      } else {
+        slot.innerHTML = `
+          <div class="image-placeholder">
+            <div style="font-size:30px;margin-bottom:6px">🖼️</div>
+            <div>รูปภาพ ${i+1}</div>
+          </div>
+        `;
+      }
+      grid.appendChild(slot);
+    }
+    grid.querySelectorAll('.remove-image').forEach(btn=>{
+      btn.addEventListener('click', e=>{
+        const idx = +e.currentTarget.dataset.index;
+        images.splice(idx,1); renderImageGrid();
+      });
+    });
+  }
+
+  function openPicker(){
+    const remain = MAX_IMAGES - images.length;
+    if (remain <= 0) { alert('ครบจำนวนรูปสูงสุดแล้ว'); return; }
+    const input = $('imageInput');
+    if (remain > 1) input.setAttribute('multiple','multiple'); else input.removeAttribute('multiple');
+    input.click();
+  }
+
+  function handleFiles(e){
+    const files = Array.from(e.target.files || []); if (!files.length) return;
+    const remain = MAX_IMAGES - images.length;
+    const batch = files.slice(0, remain);
+    let done = 0;
+    batch.forEach(file=>{
+      if (!file.type.startsWith('image/')) { done++; return; }
+      const reader = new FileReader();
+      reader.onload = (ev)=>{
+        const dataUrl = ev.target.result; // base64
+        const img = new Image();
+        img.onload = ()=>{
+          images.push(dataUrl);
+          if (++done === batch.length) renderImageGrid();
+        };
+        img.onerror = ()=>{
+          console.warn('โหลดรูปไม่สำเร็จ:', file.name);
+          if (++done === batch.length) renderImageGrid();
+        };
+        img.src = dataUrl;
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = '';
+  }
+
+  function validate(){
+    const req = ['date','project','operator','department','details'];
+    return req.every(id => { const el = $(id); return el && el.value.trim() !== ''; });
+  }
+
+  function formatDateTH(iso){
+    if(!iso) return '-';
+    const d = new Date(iso+'T00:00:00');
+    return d.toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric'});
+  }
+
+  function fillPrintTemplate(){
+    $('p-date').textContent = `วันที่: ${formatDateTH($('date').value)}`;
+    $('p-project').textContent = `โครงการ: ${$('project').value || '-'}`;
+    $('p-operator').textContent = $('operator').value || '-';
+    $('p-dept').textContent = $('department').value || '-';
+    $('p-details').textContent = $('details').value || '-';
+    $('p-footer-operator').textContent = $('operator').value || '-';
+
+    const wrap = $('p-images'); wrap.innerHTML = '';
+    if (images.length){
+      $('p-images-title').style.display = 'block';
+      images.forEach(src=>{
+        const slot = document.createElement('div'); slot.className = 'p-img-slot';
+        const img = document.createElement('img'); img.src = src; // data: ไม่ต้องตั้ง crossOrigin
+        slot.appendChild(img); wrap.appendChild(slot);
+      });
+    } else {
+      $('p-images-title').style.display = 'none';
+    }
+  }
+
+  async function waitImagesLoaded(root){
+    const imgs = Array.from(root.querySelectorAll('img'));
+    if (!imgs.length) return;
+    await Promise.all(imgs.map(img => (img.decode ? img.decode() : Promise.resolve()).catch(()=>{})));
+    await new Promise(r => requestAnimationFrame(r));
+  }
+
+  function fileName(prefix='รายงานการดำเนินการฝ่ายช่าง'){
+    const d = new Date();
+    return `${prefix}_${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}.pdf`;
+  }
+
+  async function exportPDF(){
+    if (!validate()){ alert('กรุณากรอกข้อมูลให้ครบถ้วน'); return; }
+
+    const btn = $('btnExport'); const old = btn.innerHTML;
+    btn.disabled = true; btn.innerHTML = '⏳ กำลังสร้าง PDF...';
+
+    fillPrintTemplate();
+    const printArea = $('printArea');
+    await waitImagesLoaded(printArea);
+
+    try{
+      const canvas = await html2canvas(printArea, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        imageTimeout: 0,
+        backgroundColor: '#ffffff',
+        width: 794,
+        height: 1123,
+        windowWidth: 1000
+      });
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.98);
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({ orientation:'p', unit:'mm', format:'a4', compress:true });
+      pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297, undefined, 'FAST');
+      pdf.save(fileName());
+    }catch(e){
+      console.error(e);
+      alert('เกิดข้อผิดพลาดในการสร้าง PDF');
+    }finally{
+      btn.disabled = false; btn.innerHTML = old;
+    }
+  }
+
+  function clearAll(){
+    if (!confirm('คุณต้องการล้างข้อมูลทั้งหมดใช่หรือไม่?')) return;
+    $('engineeringForm').reset();
+    images = [];
+    renderImageGrid();
+    setToday();
+    $('imageInput').value = '';
+    alert('ล้างข้อมูลเรียบร้อยแล้ว');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // Back to top
+  const back = $('backToTop');
+  back.addEventListener('click', ()=> window.scrollTo({top:0,behavior:'smooth'}));
+  window.addEventListener('scroll', ()=> {
+    if (window.scrollY > 300) back.classList.add('show'); else back.classList.remove('show');
+  });
+
+  // Events
+  $('addImageBtn').addEventListener('click', openPicker);
+  $('imageInput').addEventListener('change', handleFiles);
+  $('btnExport').addEventListener('click', exportPDF);
+  $('clearAllBtn').addEventListener('click', clearAll);
+
+  // Init
+  setToday();
+  renderImageGrid();
+})();
+</script>
+</body>
+</html>
