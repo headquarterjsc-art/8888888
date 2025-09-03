@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>ระบบบันทึกการดำเนินการฝ่ายช่าง (Stable PDF v2+Stretch+Credit+PanZoom+Signature)</title>
+<title>ระบบบันทึกการดำเนินการฝ่ายช่าง (ระยะห่าง checkbox ปรับแล้ว)</title>
 
 <!-- libs -->
 <script defer src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
@@ -13,7 +13,8 @@
   *{box-sizing:border-box;margin:0;padding:0}
   body{
     font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans Thai",sans-serif;
-    background:linear-gradient(135deg,#667eea,#764ba2);min-height:100vh;padding:20px
+    background:linear-gradient(135deg,#667eea,#764ba2);
+    min-height:100vh;padding:20px
   }
   .container{max-width:1000px;margin:0 auto;background:#fff;border-radius:20px;box-shadow:0 20px 40px rgba(0,0,0,.1);overflow:hidden}
   .header{background:linear-gradient(135deg,#2c3e50,#34495e);color:#fff;padding:28px;text-align:center}
@@ -28,6 +29,7 @@
   .form-group input:focus,.form-group select:focus,.form-group textarea:focus{
     outline:none;border-color:#667eea;background:#fff;box-shadow:0 0 0 3px rgba(102,126,234,.12)
   }
+  .help{display:block;margin-top:6px;color:#6b7280;font-size:12px}
 
   .actions{display:flex;gap:10px;justify-content:center;margin:16px 0;flex-wrap:wrap}
   .btn{
@@ -40,19 +42,57 @@
   .btn:hover{transform:translateY(-2px);box-shadow:0 10px 20px rgba(0,0,0,.15)}
   .hidden{display:none}
 
-  /* โซนรูป */
-  .image-section{margin-top:8px;padding:16px;border:2px dashed #dee2e6;border-radius:12px;background:#f8f9fa}
+  /* ===== ผู้ดำเนินการ: Checklist (เว้นห่าง checkbox ↔ text ให้คงที่) ===== */
+  .checklist{
+    display:grid; grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:12px 16px;
+  }
+  .check-item{
+    display:flex; align-items:center;
+    padding:8px 10px; border:1px solid #e5e7eb; border-radius:10px; background:#fff;
+    cursor:pointer; user-select:none; transition:.12s; min-height:44px;
+  }
+  .check-item:hover{ border-color:#d1d5db; box-shadow:0 2px 8px rgba(0,0,0,.05) }
+  .check-item input[type="checkbox"]{
+    width:22px; height:22px;
+    margin:0 16px 0 2px;
+    flex:0 0 22px; accent-color:#28a745;
+    vertical-align:middle;
+  }
+  .check-item .check-label{
+    flex:1 1 auto; line-height:1.35; color:#1f2937; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+
+  /* ===== กลุ่มฟิลด์ "อื่นๆ" (เพิ่มได้สูงสุด 6 ช่อง) ===== */
+  .operator-others{display:flex; flex-direction:column; gap:8px}
+  .other-item{display:flex; gap:8px; align-items:center}
+  .other-item input{
+    flex:1 1 auto; padding:10px 12px; font-size:15px;
+    border:2px solid #e0e6ed; border-radius:10px; background:#f8f9fa; transition:.2s
+  }
+  .other-item input:focus{outline:none;border-color:#667eea;background:#fff;box-shadow:0 0 0 3px rgba(102,126,234,.12)}
+  .other-remove{
+    border:none; border-radius:10px; padding:10px 12px; font-weight:800; font-size:14px; cursor:pointer; color:#fff;
+    background:linear-gradient(135deg,#dc3545,#e74c3c);
+  }
+  .other-actions{display:flex; gap:8px; align-items:center; margin-top:8px}
+  .btn-mini{padding:8px 12px; font-size:14px; border-radius:10px}
+
+  /* โซนรูป (ครอป 4:3 + pan/zoom + drag&drop) */
+  .image-section{
+    margin-top:8px;padding:16px;border:2px dashed #dee2e6;border-radius:12px;background:#f8f9fa; transition:.2s;
+  }
   .image-section h3{margin-bottom:10px;color:#2c3e50}
-  .image-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+  .image-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;min-height:120px}
   .image-slot{
     width:100%; aspect-ratio:4/3; border:2px dashed #d9dee5; border-radius:10px; background:#fff;
     position:relative; overflow:hidden; transition:.2s
   }
   .image-slot:hover{border-color:#667eea;background:#f0f3ff}
-  /* รูปแบบแก้ไขได้: ใช้ absolute + transform สำหรับเลื่อน/ซูม */
   .image-slot img{
     position:absolute; top:50%; left:50%;
-    width:100%; height:100%; object-fit:cover; object-position:center;
+    width:100%; height:100%;
+    object-fit:cover; object-position:center;
     transform: translate(calc(-50% + var(--tx,0px)), calc(-50% + var(--ty,0px))) scale(var(--scale,1));
     transform-origin:center center;
     image-orientation: from-image;
@@ -69,6 +109,12 @@
     position:absolute; left:8px; bottom:8px; background:rgba(17,17,17,.6); color:#fff; font-size:12px; padding:4px 8px; border-radius:8px; z-index:2
   }
 
+  /* ไฮไลท์ขณะลากไฟล์เข้า */
+  .image-section.dragover{
+    border-color:#667eea; background:#eef2ff;
+    box-shadow: inset 0 0 0 3px rgba(102,126,234,.12);
+  }
+
   /* ปุ่มกลับด้านบน */
   .back-to-top{
     position:fixed; right:18px; bottom:18px; width:46px; height:46px; border-radius:999px;
@@ -81,41 +127,37 @@
   /* ===== เทมเพลต A4 สำหรับส่งออก ===== */
   @page{size:A4;margin:0}
   #printArea{
-    position:absolute; left:0; top:-10000px; /* offscreen */
-    width:794px; height:1123px; /* A4 @96dpi */
-    background:#fff; color:#000; overflow:hidden; border:1px solid transparent;
+    position:absolute; left:0; top:-10000px;
+    width:794px; height:1123px; background:#fff; color:#000; overflow:hidden; border:1px solid transparent;
   }
   .p-header{height:74px; padding:12px 18px; background:#f4f7ff; border-bottom:1px solid #e6ebf5; display:flex; align-items:center; gap:14px}
   .p-title{font-size:18px; font-weight:800; color:#2c3e50}
   .p-meta{margin-left:auto; text-align:right; font-size:12px; color:#425466}
   .p-body{position:absolute; left:0; right:0; top:74px; bottom:50px; padding:16px 18px; overflow:hidden; display:grid; grid-template-columns:1fr; gap:10px}
-  .p-row{display:grid; grid-template-columns:1fr 1fr; gap:10px; font-size:14px}
+  .p-body.tight{ padding:14px 16px; gap:8px; }
+  .p-body.tight .p-details{ padding:8px; font-size:13px; }
+  .p-body.tight .p-details-title{ margin-bottom:4px; }
+
+  .p-row{display:grid; grid-template-columns:1fr; gap:10px; font-size:14px}
   .p-label{color:#6b7c8a}
   .p-value{color:#1f2d3a; font-weight:600}
-  .p-details{font-size:14px; line-height:1.35; border:1px solid #eef2f7; border-radius:8px; padding:10px; background:#fcfdff}
 
+  /* กล่องรายละเอียด + หัวข้อ */
+  .p-details{
+    font-size:14px; line-height:1.35; border:1px solid #eef2f7; border-radius:8px; padding:10px; background:#fcfdff
+  }
+  .p-details-title{ font-weight:700; color:#2c3e50; margin-bottom:6px; }
+  /* ★★ สำคัญ: รักษาการขึ้นบรรทัดใหม่ (Shift+Enter) เวลา export PDF */
+  #p-details-text{ white-space: pre-wrap; }
+
+  /* กริดรูป PDF */
   .p-images{display:grid; grid-template-columns:1fr 1fr; gap:10px}
-  /* โหมด 8 รูป: ทำให้พอดีหน้าเดียว */
-  .p-images.compact-8{grid-template-columns:repeat(4,1fr); gap:8px}
-  .p-img-slot{
-    width:100%; height:220px; border:1px solid #e9edf3; border-radius:8px; overflow:hidden; background:#fff; position:relative;
-  }
-  .p-images.compact-8 .p-img-slot{height:120px} /* ปรับให้ 8 รูปลงหน้าเดียวแน่นอน */
-  .p-img-slot img{
-    position:absolute; top:50%; left:50%;
-    width:100%; height:100%; object-fit:cover; object-position:center;
-    transform: translate(calc(-50% + var(--tx,0px)), calc(-50% + var(--ty,0px))) scale(var(--scale,1));
-    transform-origin:center center;
-    image-orientation: from-image;
-    display:block;
-  }
+  .p-images.two-cols-six{ grid-template-columns:1fr 1fr; gap:8px; width:92%; margin:0 auto; }
 
-  /* ช่องลงชื่อผู้ตรวจสอบ */
-  .p-sign{
-    border:1px dashed #cad3e0; border-radius:8px; padding:10px; font-size:13px; color:#1f2d3a; background:#fcfdff; margin-top:2px
+  .p-img-slot{
+    width:100%; border:1px solid #e9edf3; border-radius:8px; overflow:hidden; background:#fff; position:relative;
   }
-  .p-sign .line{margin:4px 0}
-  .p-sign .dotted{display:inline-block; min-width:220px; border-bottom:1px dotted #999}
+  .p-img-slot img{ display:block; width:100%; height:100%; }
 
   .p-footer{
     position:absolute; left:0; right:0; bottom:0; height:50px; border-top:1px solid #e6ebf5; background:#fafbff;
@@ -126,6 +168,7 @@
   @media(max-width:768px){
     .image-grid{grid-template-columns:1fr}
     .p-row{grid-template-columns:1fr}
+    .checklist{grid-template-columns:1fr}
   }
 </style>
 </head>
@@ -143,7 +186,7 @@
           <input type="date" id="date" required>
         </div>
 
-        <!-- ประเภท + ฟิลด์ย่อยตามที่เลือก -->
+        <!-- ประเภท + ฟิลด์ย่อย -->
         <div class="form-group">
           <label for="category">🏷️ ประเภท</label>
           <select id="category" required>
@@ -154,18 +197,20 @@
         </div>
         <div id="projectGroup"></div>
 
+        <!-- ผู้ดำเนินการ -->
         <div class="form-group">
-          <label for="operator">👤 ผู้ดำเนินการ</label>
-          <input type="text" id="operator" placeholder="ชื่อผู้ดำเนินการ" required>
+          <label>👥 ผู้ดำเนินการ (ติ๊กเลือกได้หลายคน)</label>
+          <div class="checklist" id="operatorsChecklist"></div>
         </div>
 
-        <div class="form-group">
-          <label for="department">🏢 แผนก / ส่วนงาน</label>
-          <select id="department" required>
-            <option value="">เลือกแผนก / ส่วนงาน</option>
-            <option>ฝ่ายช่างไฟฟ้า</option><option>ฝ่ายช่างเครื่องกล</option><option>ฝ่ายช่างโยธา</option>
-            <option>ฝ่ายบำรุงรักษา</option><option>ฝ่ายควบคุมคุณภาพ</option><option>ฝ่ายความปลอดภัย</option><option>อื่นๆ</option>
-          </select>
+        <!-- กลุ่มฟิลด์ อื่นๆ + ปุ่มเพิ่มช่อง -->
+        <div class="form-group hidden" id="operatorOtherGroup">
+          <label>ระบุชื่อผู้ดำเนินการ (อื่นๆ)</label>
+          <div id="operatorOtherWrap" class="operator-others"></div>
+          <div class="other-actions">
+            <button type="button" class="btn btn-secondary btn-mini" id="addOtherBtn">＋ เพิ่มช่อง</button>
+            <span class="help">สูงสุด 6 ช่อง</span>
+          </div>
         </div>
 
         <div class="form-group">
@@ -173,16 +218,17 @@
           <textarea id="details" placeholder="อธิบายรายละเอียดการดำเนินการ ปัญหาที่พบ และวิธีการแก้ไข" required></textarea>
         </div>
 
-        <!-- ▶ ปุ่มย้ายมาไว้เหนือโซนรูป -->
+        <!-- ▶ ปุ่มอยู่เหนือโซนรูป -->
         <div class="actions">
           <button type="button" class="btn btn-secondary" id="addImageBtn">➕ เพิ่มรูปภาพ</button>
           <button type="button" class="btn btn-primary" id="btnExport">📄 ส่งออกเป็น PDF</button>
           <button type="button" class="btn btn-danger" id="clearAllBtn">🗑️ ล้างข้อมูลทั้งหมด</button>
         </div>
 
-        <div class="image-section">
-          <h3>📸 รูปภาพประกอบ (สูงสุด 8 รูป) — ลากเพื่อเลื่อน, หมุนล้อเมาส์เพื่อซูม, ดับเบิลคลิกรีเซ็ต</h3>
+        <div class="image-section" id="imageSection">
+          <h3>📸 รูปภาพประกอบ (สูงสุด 6 รูป) — ลากเพื่อเลื่อน, หมุนล้อเมาส์เพื่อซูม, ดับเบิลคลิกรีเซ็ต (ครอป 4:3)</h3>
           <div class="image-grid" id="imageGrid"></div>
+          <span class="help">💡 คุณสามารถลากไฟล์รูปจากคอมพิวเตอร์มาปล่อยที่กรอบนี้ได้โดยตรง</span>
         </div>
       </form>
     </div>
@@ -203,357 +249,389 @@
         <div id="p-project"></div>
       </div>
     </div>
-    <div class="p-body">
+
+    <div class="p-body" id="p-body">
       <div class="p-row">
         <div><span class="p-label">ผู้ดำเนินการ:</span> <span class="p-value" id="p-operator"></span></div>
-        <div><span class="p-label">แผนก/ส่วนงาน:</span> <span class="p-value" id="p-dept"></span></div>
       </div>
-      <div class="p-details" id="p-details"></div>
+
+      <!-- กล่องรายละเอียด + หัวข้อ -->
+      <div class="p-details">
+        <div class="p-details-title">รายละเอียดการดำเนินการ</div>
+        <div id="p-details-text"></div>
+      </div>
 
       <div id="p-images-title" style="font-weight:700;margin:4px 0 2px;display:none;">รูปภาพประกอบ</div>
       <div class="p-images" id="p-images"></div>
-
-      <!-- ช่องลงชื่อผู้ตรวจสอบ -->
-      <div class="p-sign" id="p-signature">
-        <div class="line">ผู้ตรวจสอบรายงาน: <span class="dotted">&nbsp;</span></div>
-        <div class="line">ลงชื่อ: <span class="dotted">&nbsp;</span>  วันที่: <span class="dotted" style="min-width:120px">&nbsp;</span></div>
-      </div>
     </div>
+
     <div class="p-footer">
-      <div>ผู้จัดทำ: <strong id="p-footer-operator"></strong></div>
+      <div>ผู้ดำเนินการ: <strong id="p-footer-operator"></strong></div>
       <div class="p-credit">จัดทำรายงานโดย ปกป้อง ภูวชาติโยธิน</div>
       <div>หน้า 1/1</div>
     </div>
   </div>
 
 <script>
+"use strict";
 (() => {
-  const MAX_IMAGES = 8;
-
-  // รูปแบบข้อมูลรูป: { src, dxPct, dyPct, scale }
-  let images = [];
+  const MAX_IMAGES = 6;
+  const MAX_OTHER_FIELDS = 6;
   const $ = id => document.getElementById(id);
-  const pad = n => String(n).padStart(2,'0');
+  const pad2 = n => String(n).padStart(2,'0');
 
   const BUILDING_PROJECTS = [
     'สุขาภิบาล 1','รามอินทรา','หนองจอก','ลาดหลุมแก้ว 3','กบินทร์บุรี 2','กบินทร์บุรี 3',
-    'นาดี','ท่าจีน','รามคำแหง','สมุทรสาคร','อ้อมน้อย','สัตหีบ'
+    'นาดี','ท่าจีน','รามคำแหง','สมุทรสาคร','อ้อมน้อย','สัตหีบ','ออเงิน'
   ];
-  const MARKETS = ['ตลาดคุณยิ้ม(อุดมสุข)','ตลาดชาดา','ตลาดบึงกุ่ม','ตลาดกม.44'];
+  const MARKETS = ['ตลาดคุณยิ้ม(อุดมสุข)','ตลาดชาดา','ตลาดบึงกุ่ม'];
+  const OPERATOR_OPTIONS = ['ช่างสำราญ','ช่างโก๋','ช่างโหน่ง','ช่างบาส','ช่างบอล'];
 
-  function setToday(){ $('date').value = new Date().toISOString().split('T')[0]; }
+  let images = [];
 
+  function setToday(){ const inp = $('date'); if (inp) inp.value = new Date().toISOString().split('T')[0]; }
+  function formatDateTH(iso){ if(!iso) return '-'; const d=new Date(iso+'T00:00:00'); return d.toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric'}); }
+  function fileName(prefix='รายงานการดำเนินการฝ่ายช่าง'){ const d=new Date(); return `${prefix}_${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}_${pad2(d.getHours())}-${pad2(d.getMinutes())}-${pad2(d.getSeconds())}.pdf`; }
+  function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+
+  /* ===== ประเภท -> โครงการ/ชื่อตลาด ===== */
   function renderProjectField() {
-    const wrap = $('projectGroup');
-    wrap.innerHTML = '';
-    const category = $('category').value;
-    if (!category) return;
+    const wrap = $('projectGroup'); if (!wrap) return; wrap.innerHTML = '';
+    const category = $('category')?.value; if (!category) return;
 
-    const group = document.createElement('div');
-    group.className = 'form-group';
-
+    const group = document.createElement('div'); group.className = 'form-group';
     let labelText = '', selectId = '', options = [];
     if (category === 'อาคาร') { labelText = '🏗️ โครงการ'; selectId = 'projectSite'; options = BUILDING_PROJECTS; }
     if (category === 'ตลาด') { labelText = '🛒 ชื่อตลาด'; selectId = 'marketName'; options = MARKETS; }
 
-    const label = document.createElement('label');
-    label.setAttribute('for', selectId); label.textContent = labelText;
+    const label = document.createElement('label'); label.setAttribute('for', selectId); label.textContent = labelText;
+    const select = document.createElement('select'); select.id = selectId; select.required = true;
 
-    const select = document.createElement('select');
-    select.id = selectId; select.required = true;
-
-    const opt0 = document.createElement('option');
-    opt0.value = ''; opt0.textContent = (category === 'อาคาร') ? 'เลือกโครงการ' : 'เลือกชื่อตลาด';
+    const opt0 = document.createElement('option'); opt0.value = ''; opt0.textContent = (category === 'อาคาร') ? 'เลือกโครงการ' : 'เลือกชื่อตลาด';
     select.appendChild(opt0);
-
-    options.forEach(name => {
-      const opt = document.createElement('option');
-      opt.value = name; opt.textContent = name;
-      select.appendChild(opt);
-    });
+    options.forEach(name => { const opt=document.createElement('option'); opt.value=name; opt.textContent=name; select.appendChild(opt); });
 
     group.appendChild(label); group.appendChild(select);
     wrap.appendChild(group);
   }
 
-  // ====== ส่วนจัดการรูป ======
+  /* ===== ผู้ดำเนินการ ===== */
+  function renderOperatorsChecklist(){
+    const list = $('operatorsChecklist'); if (!list) return;
+    list.className = 'checklist'; list.innerHTML = '';
+
+    OPERATOR_OPTIONS.forEach(name=>{
+      const label = document.createElement('label');
+      label.className = 'check-item';
+      label.innerHTML = `<input type="checkbox" class="op-check" value="${name}"><span class="check-label">${name}</span>`;
+      list.appendChild(label);
+    });
+
+    const labelOther = document.createElement('label');
+    labelOther.className = 'check-item';
+    labelOther.innerHTML = `<input type="checkbox" id="opOtherChk" value="other"><span class="check-label">อื่นๆ</span>`;
+    list.appendChild(labelOther);
+
+    list.addEventListener('change', (e)=>{ if (e.target && e.target.id === 'opOtherChk') updateOperatorOtherVisibility(); });
+  }
+
+  // เพิ่ม/ลบช่อง "อื่นๆ"
+  function addOtherField(value=''){
+    const wrap = $('operatorOtherWrap'); if (!wrap) return;
+    const count = wrap.querySelectorAll('.other-item').length;
+    if (count >= MAX_OTHER_FIELDS){ alert(`เพิ่มได้สูงสุด ${MAX_OTHER_FIELDS} ช่อง`); return; }
+
+    const row = document.createElement('div');
+    row.className = 'other-item';
+    row.innerHTML = `
+      <input type="text" class="operator-other-input" placeholder="พิมพ์ชื่อเพิ่ม" value="${value.replace(/"/g,'&quot;')}">
+      <button type="button" class="other-remove" title="ลบช่อง">–</button>
+    `;
+    row.querySelector('.other-remove').addEventListener('click', ()=>{ row.remove(); });
+    wrap.appendChild(row);
+  }
+  function clearOtherFields(){
+    const wrap = $('operatorOtherWrap'); if (wrap) wrap.innerHTML = '';
+  }
+
+  function updateOperatorOtherVisibility(){
+    const show = !!$('opOtherChk')?.checked;
+    const grp = $('operatorOtherGroup');
+    if (!grp) return;
+
+    grp.classList.toggle('hidden', !show);
+    if (show){
+      const count = $('operatorOtherWrap')?.querySelectorAll('.other-item').length || 0;
+      if (count === 0) addOtherField('');
+    }else{
+      clearOtherFields();
+    }
+  }
+
+  function getOperatorsList(){
+    const checked = Array.from(document.querySelectorAll('.op-check:checked')).map(cb=>cb.value);
+    let names = [...checked];
+
+    if ($('opOtherChk')?.checked){
+      const others = Array.from(document.querySelectorAll('.operator-other-input')).map(inp => inp.value.trim()).filter(Boolean);
+      const expanded = [];
+      others.forEach(v => {
+        v.split(',').map(s=>s.trim()).filter(Boolean).forEach(x => expanded.push(x));
+      });
+      names = names.concat(expanded);
+    }
+
+    const seen = new Set(); const out=[]; for (const n of names){ if(!seen.has(n)){ seen.add(n); out.push(n); } }
+    return out;
+  }
+
+  /* ===== รูปภาพ (กริด + pan/zoom) ===== */
   function renderImageGrid(){
-    const grid = $('imageGrid'); grid.innerHTML = '';
+    const grid = $('imageGrid'); if (!grid) return; grid.innerHTML = '';
     for (let i=0;i<MAX_IMAGES;i++){
       const slot = document.createElement('div'); slot.className = 'image-slot';
       if (images[i]){
         slot.innerHTML = `
           <button type="button" class="remove-image" data-index="${i}" title="ลบรูป">×</button>
           <img src="${images[i].src}" alt="รูปภาพ ${i+1}" data-index="${i}">
-          <div class="edit-hint">ลากเพื่อเลื่อน • ล้อเมาส์เพื่อซูม • ดับเบิลคลิกรีเซ็ต</div>
-        `;
+          <div class="edit-hint">ลากเพื่อเลื่อน • ล้อเมาส์เพื่อซูม • ดับเบิลคลิกรีเซ็ต</div>`;
       } else {
-        slot.innerHTML = `
-          <div class="image-placeholder">
-            <div style="font-size:30px;margin-bottom:6px">🖼️</div>
-            <div>รูปภาพ ${i+1}</div>
-          </div>
-        `;
+        slot.innerHTML = `<div class="image-placeholder"><div style="font-size:30px;margin-bottom:6px">🖼️</div><div>รูปภาพ ${i+1}</div></div>`;
       }
       grid.appendChild(slot);
     }
-
-    // bind ลบ
     grid.querySelectorAll('.remove-image').forEach(btn=>{
-      btn.addEventListener('click', e=>{
-        const idx = +e.currentTarget.dataset.index;
-        images.splice(idx,1); renderImageGrid();
-      });
+      btn.addEventListener('click', e=>{ const idx=+e.currentTarget.dataset.index; images.splice(idx,1); renderImageGrid(); });
     });
 
-    // apply transforms + bind pan/zoom
     requestAnimationFrame(()=> {
       grid.querySelectorAll('img[data-index]').forEach(imgEl=>{
-        const idx = +imgEl.dataset.index;
-        applyTransformToGridImage(idx, imgEl);
-
-        // dragging
-        let dragging = false, startX=0, startY=0, startDxPct=0, startDyPct=0, slotW=0, slotH=0;
-
-        imgEl.addEventListener('mousedown', (ev)=>{
-          ev.preventDefault();
-          dragging = true; imgEl.classList.add('dragging');
-          startX = ev.clientX; startY = ev.clientY;
-          startDxPct = images[idx].dxPct || 0; startDyPct = images[idx].dyPct || 0;
-          const rect = imgEl.parentElement.getBoundingClientRect();
-          slotW = rect.width; slotH = rect.height;
+        const idx = +imgEl.dataset.index; applyTransformToGridImage(idx, imgEl);
+        let dragging=false,startX=0,startY=0,startDxPct=0,startDyPct=0,slotW=0,slotH=0;
+        imgEl.addEventListener('mousedown', ev=>{
+          ev.preventDefault(); dragging=true; imgEl.classList.add('dragging');
+          startX=ev.clientX; startY=ev.clientY; startDxPct=images[idx].dxPct||0; startDyPct=images[idx].dyPct||0;
+          const rect=imgEl.parentElement.getBoundingClientRect(); slotW=rect.width; slotH=rect.height;
         });
-        window.addEventListener('mousemove', (ev)=>{
-          if(!dragging) return;
-          const state = images[idx];
-          if (state.scale <= 1){ state.dxPct = 0; state.dyPct = 0; applyTransformToGridImage(idx, imgEl); return; }
-          const dx = (ev.clientX - startX) / slotW;
-          const dy = (ev.clientY - startY) / slotH;
-          const max = (state.scale - 1) / 2; // ขอบเขต pan
-          state.dxPct = clamp(startDxPct + dx, -max, max);
-          state.dyPct = clamp(startDyPct + dy, -max, max);
-          applyTransformToGridImage(idx, imgEl);
+        window.addEventListener('mousemove', ev=>{
+          if(!dragging) return; const st=images[idx];
+          if (st.scale<=1){ st.dxPct=0; st.dyPct=0; applyTransformToGridImage(idx,imgEl); return; }
+          const dx=(ev.clientX-startX)/slotW, dy=(ev.clientY-startY)/slotH, max=(st.scale-1)/2;
+          st.dxPct=clamp(startDxPct+dx,-max,max); st.dyPct=clamp(startDyPct+dy,-max,max); applyTransformToGridImage(idx,imgEl);
         });
-        window.addEventListener('mouseup', ()=>{
-          if(dragging){ dragging = false; imgEl.classList.remove('dragging'); }
+        window.addEventListener('mouseup', ()=>{ if(dragging){ dragging=false; imgEl.classList.remove('dragging'); } });
+        imgEl.addEventListener('wheel', ev=>{
+          ev.preventDefault(); const st=images[idx]; const next=clamp((st.scale||1)*(1 - ev.deltaY*0.001),1,3); st.scale=next;
+          const max=(st.scale-1)/2; st.dxPct=clamp(st.dxPct||0,-max,max); st.dyPct=clamp(st.dyPct||0,-max,max); applyTransformToGridImage(idx,imgEl);
         });
-
-        // zoom by wheel
-        imgEl.addEventListener('wheel', (ev)=>{
-          ev.preventDefault();
-          const state = images[idx];
-          const old = state.scale || 1;
-          const next = clamp(old * (1 - ev.deltaY * 0.001), 1, 3); // min 1, max 3
-          state.scale = next;
-
-          // clamp pan after zoom
-          const max = (state.scale - 1) / 2;
-          state.dxPct = clamp(state.dxPct || 0, -max, max);
-          state.dyPct = clamp(state.dyPct || 0, -max, max);
-
-          applyTransformToGridImage(idx, imgEl);
-        });
-
-        // reset
-        imgEl.addEventListener('dblclick', ()=>{
-          images[idx].scale = 1; images[idx].dxPct = 0; images[idx].dyPct = 0;
-          applyTransformToGridImage(idx, imgEl);
-        });
+        imgEl.addEventListener('dblclick', ()=>{ images[idx].scale=1; images[idx].dxPct=0; images[idx].dyPct=0; applyTransformToGridImage(idx,imgEl); });
       });
     });
   }
-
-  function clamp(v, min, max){ return Math.max(min, Math.min(max, v)); }
-
   function applyTransformToGridImage(idx, imgEl){
-    const state = images[idx];
-    const slotRect = imgEl.parentElement.getBoundingClientRect();
-    const tx = (state.dxPct || 0) * slotRect.width;
-    const ty = (state.dyPct || 0) * slotRect.height;
-    imgEl.style.setProperty('--tx', tx + 'px');
-    imgEl.style.setProperty('--ty', ty + 'px');
-    imgEl.style.setProperty('--scale', (state.scale || 1));
+    const st = images[idx] || { dxPct:0, dyPct:0, scale:1 };
+    const rect = imgEl.parentElement.getBoundingClientRect();
+    imgEl.style.setProperty('--tx', (st.dxPct||0)*rect.width + 'px');
+    imgEl.style.setProperty('--ty', (st.dyPct||0)*rect.height + 'px');
+    imgEl.style.setProperty('--scale', (st.scale||1));
   }
+  function updateAllGridTransforms(){ document.querySelectorAll('#imageGrid img[data-index]').forEach(imgEl=>{ const idx=+imgEl.dataset.index; applyTransformToGridImage(idx,imgEl); }); }
 
-  function updateAllGridTransforms(){
-    document.querySelectorAll('#imageGrid img[data-index]').forEach(imgEl=>{
-      const idx = +imgEl.dataset.index;
-      applyTransformToGridImage(idx, imgEl);
+  /* ===== Drag & Drop ===== */
+  function bindDragAndDrop(){
+    const zone = $('imageSection'); if (!zone) return;
+    let dragCounter = 0;
+    const addHL = ()=> zone.classList.add('dragover');
+    const rmHL  = ()=> zone.classList.remove('dragover');
+
+    ['dragenter','dragover'].forEach(evt=>{
+      zone.addEventListener(evt, (e)=>{ e.preventDefault(); dragCounter++; addHL(); });
+    });
+    zone.addEventListener('dragleave', (e)=>{ e.preventDefault(); dragCounter--; if (dragCounter<=0) { dragCounter=0; rmHL(); } });
+    zone.addEventListener('drop', (e)=>{
+      e.preventDefault(); dragCounter=0; rmHL();
+      const dt = e.dataTransfer;
+      if (dt?.files && dt.files.length){
+        handleFileList(dt.files);
+      }
     });
   }
 
-  function openPicker(){
-    const remain = MAX_IMAGES - images.length;
-    if (remain <= 0) { alert('ครบจำนวนรูปสูงสุดแล้ว'); return; }
-    const input = $('imageInput');
-    if (remain > 1) input.setAttribute('multiple','multiple'); else input.removeAttribute('multiple');
-    input.click();
-  }
-
-  function handleFiles(e){
-    const files = Array.from(e.target.files || []); if (!files.length) return;
-    const remain = MAX_IMAGES - images.length;
-    const batch = files.slice(0, remain);
-    let done = 0;
-    batch.forEach(file=>{
-      if (!file.type.startsWith('image/')) { done++; return; }
-      const reader = new FileReader();
-      reader.onload = (ev)=>{
-        const dataUrl = ev.target.result;
-        const img = new Image();
-        img.onload = ()=>{
-          images.push({ src: dataUrl, dxPct: 0, dyPct: 0, scale: 1 });
-          if (++done === batch.length) renderImageGrid();
-        };
-        img.onerror = ()=>{ if (++done === batch.length) renderImageGrid(); };
-        img.src = dataUrl;
-      };
-      reader.readAsDataURL(file);
+  /* ===== PDF helper (ครอป 4:3) ===== */
+  function loadImage(src){ return new Promise((res,rej)=>{ const img=new Image(); img.onload=()=>res(img); img.onerror=rej; img.src=src; }); }
+  function generateCroppedDataURL(st, targetW=1200, targetH=900){
+    return loadImage(st.src).then(img=>{
+      const W=img.naturalWidth||img.width, H=img.naturalHeight||img.height;
+      const c=document.createElement('canvas'); c.width=targetW; c.height=targetH; const ctx=c.getContext('2d');
+      const s0=Math.max(targetW/W, targetH/H); const s=s0*(st.scale||1);
+      const drawW=W*s, drawH=H*s;
+      const dx_px=(st.dxPct||0)*targetW, dy_px=(st.dyPct||0)*targetH;
+      const dx=(targetW-drawW)/2 + dx_px, dy=(targetH-drawH)/2 + dy_px;
+      ctx.fillStyle='#fff'; ctx.fillRect(0,0,targetW,targetH); ctx.imageSmoothingQuality='high';
+      ctx.drawImage(img, dx, dy, drawW, drawH);
+      return c.toDataURL('image/jpeg', 0.92);
     });
-    e.target.value = '';
+  }
+  function forcePrintSlotsTo4x3(){
+    const slots = Array.from(document.querySelectorAll('#p-images .p-img-slot'));
+    slots.forEach(slot=>{ const w=slot.clientWidth; slot.style.height = (w*3/4) + 'px'; });
   }
 
-  function validate(){
-    const baseOk = ['date','category','operator','department','details']
-      .every(id => { const el = $(id); return el && el.value.trim() !== ''; });
+  /* ===== เติมเทมเพลต PDF ===== */
+  async function fillPrintTemplate(){
+    $('p-date').textContent = `วันที่: ${formatDateTH($('date')?.value)}`;
 
-    if (!baseOk) return false;
-
-    const cat = $('category').value;
-    if (cat === 'อาคาร')  return $('projectSite') && $('projectSite').value.trim() !== '';
-    if (cat === 'ตลาด')   return $('marketName') && $('marketName').value.trim() !== '';
-    return false;
-  }
-
-  function formatDateTH(iso){
-    if(!iso) return '-';
-    const d = new Date(iso+'T00:00:00');
-    return d.toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric'});
-  }
-
-  function fillPrintTemplate(){
-    $('p-date').textContent = `วันที่: ${formatDateTH($('date').value)}`;
-
-    const cat = $('category').value;
-    let headerLabel = 'โครงการ', headerValue = '-';
-    if (cat === 'อาคาร') { headerLabel = 'โครงการ'; headerValue = ($('projectSite')?.value || '-'); }
-    if (cat === 'ตลาด')  { headerLabel = 'ชื่อตลาด'; headerValue = ($('marketName')?.value || '-'); }
+    const cat = $('category')?.value; let headerLabel='โครงการ', headerValue='-';
+    if (cat==='อาคาร'){ headerLabel='โครงการ'; headerValue=$('projectSite')?.value || '-'; }
+    if (cat==='ตลาด'){ headerLabel='ชื่อตลาด'; headerValue=$('marketName')?.value || '-'; }
     $('p-project').textContent = `${headerLabel}: ${headerValue}`;
 
-    $('p-operator').textContent = $('operator').value || '-';
-    $('p-dept').textContent = $('department').value || '-';
-    $('p-details').textContent = $('details').value || '-';
-    $('p-footer-operator').textContent = $('operator').value || '-';
+    const opNames = getOperatorsList(); const opText = opNames.length ? opNames.join(', ') : '-';
+    $('p-operator').textContent = opText; $('p-footer-operator').textContent = opText;
 
+    // ใช้ textContent + CSS pre-wrap เพื่อเก็บบรรทัดใหม่
+    $('p-details-text').textContent = $('details')?.value || '-';
+
+    const useImages = images.slice(0, MAX_IMAGES);
+    const body = $('p-body');
     const wrap = $('p-images'); wrap.innerHTML = '';
-    if (images.length){
-      $('p-images-title').style.display = 'block';
 
-      // ถ้า 8 รูป ให้เข้าโหมด compact-8 เพื่อให้พอดี 1 หน้า
-      wrap.classList.toggle('compact-8', images.length === 8);
+    const hasImgs = useImages.length > 0;
+    $('p-images-title').style.display = hasImgs ? 'block' : 'none';
 
-      images.forEach((state, idx)=>{
+    wrap.classList.toggle('two-cols-six', useImages.length === 6);
+    body.classList.toggle('tight', useImages.length === 6);
+
+    if (hasImgs){
+      useImages.forEach(()=> {
         const slot = document.createElement('div'); slot.className = 'p-img-slot';
-        const img = document.createElement('img'); img.src = state.src;
+        const img = document.createElement('img'); img.alt = '';
         slot.appendChild(img); wrap.appendChild(slot);
       });
 
-      // หลังวาง element แล้ว ค่อยคำนวณขนาด slot เพื่อคูณ offset เป็น px
-      requestAnimationFrame(()=>{
-        wrap.querySelectorAll('.p-img-slot img').forEach((imgEl, i)=>{
-          const slotRect = imgEl.parentElement.getBoundingClientRect();
-          const st = images[i];
-          const tx = (st.dxPct || 0) * slotRect.width;
-          const ty = (st.dyPct || 0) * slotRect.height;
-          imgEl.style.setProperty('--tx', tx + 'px');
-          imgEl.style.setProperty('--ty', ty + 'px');
-          imgEl.style.setProperty('--scale', (st.scale || 1));
-        });
-      });
+      forcePrintSlotsTo4x3();
 
-    } else {
-      $('p-images-title').style.display = 'none';
-      wrap.classList.remove('compact-8');
+      const crops = await Promise.all(useImages.map(st => generateCroppedDataURL(st, 1200, 900)));
+      Array.from(wrap.querySelectorAll('.p-img-slot img')).forEach((imgEl, i)=>{ imgEl.src = crops[i]; });
     }
   }
 
   async function waitImagesLoaded(root){
-    const imgs = Array.from(root.querySelectorAll('img'));
-    if (!imgs.length) return;
+    const imgs = Array.from(root.querySelectorAll('img')); if (!imgs.length) return;
     await Promise.all(imgs.map(img => (img.decode ? img.decode() : Promise.resolve()).catch(()=>{})));
     await new Promise(r => requestAnimationFrame(r));
   }
 
-  function fileName(prefix='รายงานการดำเนินการฝ่ายช่าง'){
-    const d = new Date();
-    return `${prefix}_${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}.pdf`;
-  }
-
+  /* ===== ส่งออก PDF: ถามชื่อไฟล์ก่อนบันทึก ===== */
   async function exportPDF(){
     if (!validate()){ alert('กรุณากรอกข้อมูลให้ครบถ้วน'); return; }
-
-    const btn = $('btnExport'); const old = btn.innerHTML;
-    btn.disabled = true; btn.innerHTML = '⏳ กำลังสร้าง PDF...';
-
-    fillPrintTemplate();
-    const printArea = $('printArea');
-    await waitImagesLoaded(printArea);
-
+    const btn=$('btnExport'); const old=btn.innerHTML; btn.disabled=true; btn.innerHTML='⏳ กำลังสร้าง PDF...';
     try{
-      const canvas = await html2canvas(printArea, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        imageTimeout: 0,
-        backgroundColor: '#ffffff',
-        width: 794,
-        height: 1123,
-        windowWidth: 1000
-      });
+      await fillPrintTemplate();
+      const printArea=$('printArea'); await waitImagesLoaded(printArea);
+      const canvas=await html2canvas(printArea,{ scale:2,useCORS:true,allowTaint:true,imageTimeout:0,backgroundColor:'#ffffff',width:794,height:1123,windowWidth:1000 });
+      const imgData=canvas.toDataURL('image/jpeg',0.98);
+      const { jsPDF }=window.jspdf; const pdf=new jsPDF({orientation:'p',unit:'mm',format:'a4',compress:true});
+      pdf.addImage(imgData,'JPEG',0,0,210,297,undefined,'FAST');
 
-      const imgData = canvas.toDataURL('image/jpeg', 0.98);
-      const { jsPDF } = window.jspdf;
-      const pdf = new jsPDF({ orientation:'p', unit:'mm', format:'a4', compress:true });
-      pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297, undefined, 'FAST');
-      pdf.save(fileName());
+      const suggested = fileName();
+      const input = prompt('ตั้งชื่อไฟล์ PDF', suggested);
+      if (input === null) return;
+
+      let name = (input.trim() === '' ? suggested : input.trim());
+      if (!/\.pdf$/i.test(name)) name += '.pdf';
+      pdf.save(name);
     }catch(e){
       console.error(e);
       alert('เกิดข้อผิดพลาดในการสร้าง PDF');
     }finally{
-      btn.disabled = false; btn.innerHTML = old;
+      btn.disabled=false; btn.innerHTML=old;
     }
+  }
+
+  function validate(){
+    const baseOk=['date','category','details'].every(id=>{ const el=$(id); return el && String(el.value||'').trim()!==''; });
+    if (!baseOk) return false;
+    const cat=$('category')?.value;
+    if (cat==='อาคาร' && (!$('projectSite') || !$('projectSite').value.trim())) return false;
+    if (cat==='ตลาด' && (!$('marketName') || !$('marketName').value.trim())) return false;
+    if (getOperatorsList().length===0) return false;
+    return true;
+  }
+
+  /* ===== Upload: ปุ่มเลือก + Drag&Drop ===== */
+  function openPicker(){
+    const remain=Math.max(0, MAX_IMAGES - images.length);
+    if (remain<=0){ alert('ครบจำนวนรูปสูงสุดแล้ว (6 รูป)'); return; }
+    const input=$('imageInput'); if (!input) return;
+    if (remain>1) input.setAttribute('multiple','multiple'); else input.removeAttribute('multiple');
+    input.click();
+  }
+  function handleFiles(e){
+    const files=Array.from(e.target.files||[]); if (!files.length) return;
+    handleFileList(files);
+    e.target.value='';
+  }
+  function handleFileList(fileList){
+    const files=Array.from(fileList||[]); if (!files.length) return;
+    const remain=Math.max(0, MAX_IMAGES - images.length);
+    if (remain<=0){ alert('ครบจำนวนรูปสูงสุดแล้ว (6 รูป)'); return; }
+    const batch=files.slice(0,remain);
+    let done=0;
+    batch.forEach(file=>{
+      if (!file.type || !file.type.startsWith('image/')){ if (++done===batch.length) renderImageGrid(); return; }
+      const reader=new FileReader();
+      reader.onload=(ev)=>{
+        const dataUrl=ev.target.result; const img=new Image();
+        img.onload=()=>{ images.push({ src:dataUrl, dxPct:0, dyPct:0, scale:1 }); if (++done===batch.length) renderImageGrid(); };
+        img.onerror=()=>{ if (++done===batch.length) renderImageGrid(); };
+        img.src=dataUrl;
+      };
+      reader.readAsDataURL(file);
+    });
   }
 
   function clearAll(){
     if (!confirm('คุณต้องการล้างข้อมูลทั้งหมดใช่หรือไม่?')) return;
-    $('engineeringForm').reset();
-    images = [];
-    renderImageGrid();
-    setToday();
-    $('imageInput').value = '';
-    $('projectGroup').innerHTML = '';
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    $('engineeringForm')?.reset(); images=[];
+    document.querySelectorAll('#operatorsChecklist input[type="checkbox"]').forEach(cb=> cb.checked=false);
+    updateOperatorOtherVisibility();
+    renderImageGrid(); setToday();
+    const input=$('imageInput'); if (input) input.value='';
+    $('projectGroup').innerHTML=''; window.scrollTo({ top: 0, behavior: 'smooth' });
     alert('ล้างข้อมูลเรียบร้อยแล้ว');
   }
 
-  // Back to top
-  const back = $('backToTop');
-  back.addEventListener('click', ()=> window.scrollTo({top:0,behavior:'smooth'}));
-  window.addEventListener('scroll', ()=> {
-    if (window.scrollY > 300) back.classList.add('show'); else back.classList.remove('show');
-  });
+  /* ===== Bind & Init ===== */
+  function bindEvents(){
+    $('addImageBtn')?.addEventListener('click', openPicker);
+    $('imageInput')?.addEventListener('change', handleFiles);
+    $('btnExport')?.addEventListener('click', exportPDF);
+    $('clearAllBtn')?.addEventListener('click', clearAll);
+    $('category')?.addEventListener('change', renderProjectField);
 
-  // Events
-  $('addImageBtn').addEventListener('click', openPicker);
-  $('imageInput').addEventListener('change', handleFiles);
-  $('btnExport').addEventListener('click', exportPDF);
-  $('clearAllBtn').addEventListener('click', clearAll);
-  $('category').addEventListener('change', renderProjectField);
-  window.addEventListener('resize', updateAllGridTransforms);
+    $('addOtherBtn')?.addEventListener('click', ()=> addOtherField(''));
 
-  // Init
-  setToday();
-  renderImageGrid();
+    const back=$('backToTop');
+    back?.addEventListener('click', ()=> window.scrollTo({top:0,behavior:'smooth'}));
+    window.addEventListener('scroll', ()=>{ if (!back) return; if (window.scrollY>300) back.classList.add('show'); else back.classList.remove('show'); });
+    window.addEventListener('resize', updateAllGridTransforms);
+
+    bindDragAndDrop();
+  }
+
+  function applyTransformToGridImage(idx, imgEl){
+    const st = images[idx] || { dxPct:0, dyPct:0, scale:1 };
+    const rect = imgEl.parentElement.getBoundingClientRect();
+    imgEl.style.setProperty('--tx', (st.dxPct||0)*rect.width + 'px');
+    imgEl.style.setProperty('--ty', (st.dyPct||0)*rect.height + 'px');
+    imgEl.style.setProperty('--scale', (st.scale||1));
+  }
+  function updateAllGridTransforms(){ document.querySelectorAll('#imageGrid img[data-index]').forEach(imgEl=>{ const idx=+imgEl.dataset.index; applyTransformToGridImage(idx,imgEl); }); }
+
+  // init
+  bindEvents();
+  setToday(); renderProjectField(); renderOperatorsChecklist(); updateOperatorOtherVisibility(); renderImageGrid();
 })();
 </script>
 </body>
